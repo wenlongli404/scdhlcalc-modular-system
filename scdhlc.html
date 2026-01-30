@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALC板材配模管理系统</title>
+    
+    <!-- 基础样式 -->
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 加载动画 */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-top: 20px;
+            color: #4b5563;
+            font-size: 1.1rem;
+        }
+        .loading-detail {
+            margin-top: 10px;
+            color: #6b7280;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 300px;
+        }
+        .error-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            padding: 20px;
+            text-align: center;
+        }
+        .error-icon {
+            font-size: 4rem;
+            color: #ef4444;
+            margin-bottom: 20px;
+        }
+        .error-title {
+            font-size: 1.5rem;
+            color: #111827;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .error-message {
+            color: #6b7280;
+            margin-bottom: 20px;
+            max-width: 400px;
+        }
+        .retry-btn {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .retry-btn:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <!-- 加载遮罩 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p class="loading-text">正在加载应用</p>
+        <p id="loadingDetail" class="loading-detail">初始化中...</p>
+    </div>
+    
+    <!-- 错误遮罩 -->
+    <div id="errorOverlay" class="error-overlay" style="display: none;">
+        <div class="error-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h2 class="error-title">应用加载失败</h2>
+        <p id="errorMessage" class="error-message"></p>
+        <button id="retryBtn" class="retry-btn">
+            <i class="fas fa-redo mr-2"></i>重新加载
+        </button>
+        <div class="mt-4 text-sm text-gray-500">
+            如果问题持续存在，请检查网络连接
+        </div>
+    </div>
+    
+    <!-- 应用容器 -->
+    <div id="app" style="display: none;"></div>
+    
+    <!-- 基础JS库 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script>
+        // ==================== 配置 ====================
+        // 请修改为你的GitHub信息
+        const GITHUB_USERNAME = 'wenlongli404';  // 你的GitHub用户名
+        const GITHUB_REPO = 'alc-modular-system'; // 你的仓库名
+        const GITHUB_BRANCH = 'main';            // 分支名
+        
+        // GitHub Raw URLs
+        const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/${GITHUB_BRANCH}/`;
+        const CONFIG_URL = GITHUB_RAW_BASE + 'config.json';
+        
+        // 加载状态
+        let loadingState = {
+            config: false,
+            modules: {},
+            loadedCount: 0,
+            totalModules: 0
+        };
+        
+        // ==================== 工具函数 ====================
+        
+        // 更新加载详情
+        function updateLoadingDetail(text) {
+            const detailEl = document.getElementById('loadingDetail');
+            if (detailEl) detailEl.textContent = text;
+            console.log(`[加载] ${text}`);
+        }
+        
+        // 动态加载脚本
+        function loadScript(url, moduleName = '') {
+            return new Promise((resolve, reject) => {
+                updateLoadingDetail(`正在加载 ${moduleName || '模块'}...`);
+                
+                const script = document.createElement('script');
+                script.src = url + '?t=' + Date.now(); // 防止缓存
+                script.onload = () => {
+                    loadingState.modules[moduleName] = true;
+                    loadingState.loadedCount++;
+                    updateLoadingDetail(`已加载 ${moduleName} (${loadingState.loadedCount}/${loadingState.totalModules})`);
+                    resolve();
+                };
+                script.onerror = () => {
+                    reject(new Error(`无法加载脚本: ${url}`));
+                };
+                document.head.appendChild(script);
+            });
+        }
+        
+        // 显示错误
+        function showError(message) {
+            console.error('应用加载错误:', message);
+            
+            // 隐藏加载遮罩
+            document.getElementById('loadingOverlay').style.display = 'none';
+            
+            // 显示错误遮罩
+            const errorOverlay = document.getElementById('errorOverlay');
+            const errorMessage = document.getElementById('errorMessage');
+            const retryBtn = document.getElementById('retryBtn');
+            
+            errorMessage.textContent = message;
+            errorOverlay.style.display = 'flex';
+            
+            // 重试按钮事件
+            retryBtn.onclick = () => {
+                errorOverlay.style.display = 'none';
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                setTimeout(loadApplication, 500);
+            };
+        }
+        
+        // ==================== 主加载函数 ====================
+        
+        async function loadApplication() {
+            try {
+                updateLoadingDetail('正在加载配置...');
+                
+                // 1. 加载配置
+                const response = await fetch(CONFIG_URL + '?t=' + Date.now());
+                if (!response.ok) {
+                    throw new Error(`配置加载失败: HTTP ${response.status}`);
+                }
+                
+                const config = await response.json();
+                loadingState.config = true;
+                
+                console.log('远程配置加载成功:', config);
+                updateLoadingDetail(`配置加载成功 (版本: ${config.version})`);
+                
+                // 保存配置到全局
+                window.appConfig = config;
+                
+                // 2. 检查维护模式
+                if (config.notifications?.maintenance_mode) {
+                    showError('系统维护中，请稍后再试');
+                    return;
+                }
+                
+                // 3. 加载启用的模块
+                const enabledModules = config.enabledModules || [];
+                loadingState.totalModules = enabledModules.length;
+                
+                if (enabledModules.length === 0) {
+                    throw new Error('配置错误: 没有启用的模块');
+                }
+                
+                updateLoadingDetail(`开始加载 ${enabledModules.length} 个模块...`);
+                
+                // 4. 按顺序加载模块
+                for (const moduleName of enabledModules) {
+                    const modulePath = config.modules?.[moduleName];
+                    if (!modulePath) {
+                        console.warn(`模块配置缺失: ${moduleName}`);
+                        continue;
+                    }
+                    
+                    const moduleUrl = GITHUB_RAW_BASE + modulePath;
+                    await loadScript(moduleUrl, moduleName);
+                }
+                
+                // 5. 检查核心模块是否加载
+                if (!window.core) {
+                    throw new Error('核心模块加载失败');
+                }
+                
+                // 6. 初始化应用
+                updateLoadingDetail('正在初始化应用...');
+                
+                if (typeof window.initializeApp === 'function') {
+                    await window.initializeApp(config);
+                } else {
+                    throw new Error('应用初始化函数未找到');
+                }
+                
+                // 7. 完成加载
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    document.getElementById('app').style.display = 'block';
+                    
+                    // 显示欢迎消息
+                    if (config.notifications?.welcome_message) {
+                        setTimeout(() => {
+                            if (window.core?.showNotification) {
+                                window.core.showNotification(config.notifications.welcome_message, 'success');
+                            }
+                        }, 300);
+                    }
+                    
+                    console.log('应用加载完成！');
+                }, 500);
+                
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        
+        // ==================== 页面加载 ====================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('ALC板材配模管理系统 - 模块化版本');
+            console.log(`GitHub仓库: ${GITHUB_USERNAME}/${GITHUB_REPO}`);
+            
+            // 开始加载应用
+            loadApplication();
+            
+            // 添加离线检测
+            window.addEventListener('offline', () => {
+                if (window.core?.showNotification) {
+                    window.core.showNotification('网络连接已断开', 'error');
+                }
+            });
+            
+            window.addEventListener('online', () => {
+                if (window.core?.showNotification) {
+                    window.core.showNotification('网络连接已恢复', 'success');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

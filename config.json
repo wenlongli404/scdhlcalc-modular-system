@@ -1,0 +1,82 @@
+{
+  "app_name": "ALC板材配模管理系统",
+  "version": "2.2",
+  "description": "基于GitHub的模块化配模系统",
+  "author": "你的名字",
+  "last_updated": "2024-01-30",
+  
+  "algorithm_enabled": true,
+  "maintenance_mode": false,
+  
+  "modules": {
+    "core": "modules/core.js",
+    "ui": "modules/ui.js",
+    "algorithm": "modules/algorithm.js",
+    "data": "modules/data.js",
+    "history": "modules/history.js"
+  },
+  
+  "enabledModules": ["core", "ui", "algorithm", "data", "history"],
+  
+  "features": {
+    "import_export": true,
+    "batch_operations": true,
+    "history_query": true,
+    "auto_adjust_quantity": true,
+    "thickness_filter": true,
+    "template_management": true
+  },
+  
+  "default_settings": {
+    "template_size": 6000,
+    "cut_loss": 0,
+    "min_combination_range": 4000,
+    "max_combination_range": 6000,
+    "auto_adjust_quantity": true
+  },
+  
+  "thickness_options": ["300", "250", "220", "200", "190", "175", "150", "120", "100", "90"],
+  
+  "notifications": {
+    "welcome_message": "ALC板材配模管理系统已加载完成",
+    "update_available": false,
+    "update_message": "",
+    "maintenance_mode": false,
+    "maintenance_message": ""
+  },
+  
+  "ui_config": {
+    "theme": "light",
+    "animation_enabled": true,
+    "notifications_enabled": true,
+    "auto_save": true,
+    "data_retention_days": 7
+  },
+  
+  "export_config": {
+    "file_name_prefix": "ALC_板材数据_",
+    "date_format": "YYYY-MM-DD",
+    "include_summary": true,
+    "include_timestamps": true
+  },
+  
+  "security": {
+    "max_file_size": 5242880,
+    "allowed_file_types": [".xlsx", ".xls", ".csv"],
+    "max_boards_count": 1000,
+    "max_history_entries": 100
+  },
+  
+  "performance": {
+    "debounce_delay": 300,
+    "cache_enabled": true,
+    "lazy_loading": true,
+    "worker_enabled": false
+  },
+  
+  "debug": {
+    "enabled": false,
+    "log_level": "info",
+    "enable_console_log": true
+  }
+}

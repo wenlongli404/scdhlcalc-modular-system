@@ -8,13 +8,13 @@
   "algorithm_enabled": true,
   "maintenance_mode": false,
   
-  "modules": {
-    "core": "modules/core.js",
-    "ui": "modules/ui.js",
-    "algorithm": "modules/algorithm.js",
-    "data": "modules/data.js",
-    "history": "modules/history.js"
-  },
+ "modules": {
+    "core": "modules.js",
+    "ui": "modules-ui.js",
+    "algorithm": "modules-algorithm.js",
+    "data": "modules-data.js",
+    "history": "modules-history.js"
+}
   
   "enabledModules": ["core", "ui", "algorithm", "data", "history"],
   

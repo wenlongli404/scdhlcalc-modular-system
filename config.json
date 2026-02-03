@@ -14,7 +14,7 @@
     "algorithm": "modules-algorithm.js",
     "data": "modules-data.js",
     "history": "modules-history.js"
-}，
+},
   
   "enabledModules": ["core", "ui", "algorithm", "data", "history"],
   
